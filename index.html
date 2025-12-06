@@ -5,332 +5,259 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>家庭厨房助手</title>
     
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Vue 3 (浏览器原生支持，无需 Babel 编译，极其稳定) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input, select, textarea { font-size: 16px; } 
+        [v-cloak] { display: none; } /* Vue 加载前隐藏未编译的模板 */
     </style>
-
-    <!-- 1. Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. React & ReactDOM (UMD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- 3. HTM (替代 Babel，用于在普通 JS 中写类 JSX 语法) -->
-    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body class="bg-gray-50 text-gray-800 h-screen overflow-hidden">
     
-    <div id="root" class="h-full"></div>
+    <div id="app" class="h-full flex flex-col" v-cloak>
+        
+        <!-- Header -->
+        <header class="bg-white px-4 py-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
+            <h1 class="text-xl font-black text-emerald-800 tracking-tight">
+                {{ activeTab === 'recipes' ? '我的菜谱' : activeTab === 'pantry' ? '食物库存' : '购物清单' }}
+            </h1>
+            <div class="flex gap-2">
+                <button v-if="activeTab !== 'shopping'" @click="openModal" 
+                    class="bg-emerald-600 text-white p-2 rounded-full shadow-lg active:scale-90 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <span v-else class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">
+                    待买: {{ uncheckedCount }}
+                </span>
+            </div>
+        </header>
 
-    <!-- 注意：这里不再是 type="text/babel"，而是普通的 javascript -->
-    <script>
-        // --- 初始化环境 ---
-        const { useState, useEffect, useMemo, createElement } = React;
-        const html = htm.bind(createElement);
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-4 hide-scrollbar pb-24">
+            
+            <!-- 1. Recipes View -->
+            <div v-if="activeTab === 'recipes'" class="space-y-4">
+                <div v-if="recipes.length === 0" class="text-center py-20 text-gray-400">
+                    <p>还没有菜谱，快去添加吧！</p>
+                </div>
+                <div v-for="recipe in recipes" :key="recipe.id" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-bold text-lg text-gray-800">{{ recipe.name }}</h3>
+                        <button @click="deleteRecipe(recipe.id)" class="text-gray-300 hover:text-red-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span v-for="(ing, idx) in recipe.ingredients" :key="idx" class="text-sm bg-gray-50 px-2 py-1 rounded text-gray-600 border border-gray-100">
+                            {{ ing.name }} {{ ing.quantity }}{{ ing.unit }}
+                            <span class="text-xs ml-1" :class="ing.location === '德超' ? 'text-blue-500' : ing.location === '亚超' ? 'text-red-500' : 'text-gray-400'">●</span>
+                        </span>
+                    </div>
+                    <button @click="addRecipeToShoppingList(recipe)" class="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 py-2 rounded-lg text-sm font-bold hover:bg-emerald-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg> 
+                        加入购物单
+                    </button>
+                </div>
+            </div>
 
-        // --- 安全存储 ---
-        const SafeStorage = {
-            getItem: (key) => {
-                try { return localStorage.getItem(key); } 
-                catch (e) { console.warn('Storage read failed', e); return null; }
-            },
-            setItem: (key, value) => {
-                try { localStorage.setItem(key, value); } 
-                catch (e) { console.warn('Storage write failed', e); }
-            }
-        };
-
-        // --- 图标组件 (使用 html`` 语法) ---
-        // 注意：组件在模板中引用时需要使用 <${IconName} /> 的格式
-        const IconChef = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>`;
-        const IconFridge = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6Z"/><path d="M5 10h14"/><path d="M15 2v24"/></svg>`;
-        const IconCart = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`;
-        const IconPlus = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
-        const IconTrash = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
-        const IconCheck = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        const IconX = () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-
-        // --- 常量 ---
-        const LOCATIONS = [
-            { id: 'de', name: '德超', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-            { id: 'asia', name: '亚超', color: 'bg-red-100 text-red-800 border-red-200' },
-            { id: 'other', name: '其他', color: 'bg-gray-100 text-gray-800 border-gray-200' }
-        ];
-        const UNITS = ['个', 'g', 'kg', '包', '瓶', '盒', 'L', 'ml'];
-
-        // --- 辅助组件 ---
-        const Badge = ({ type }) => {
-            const loc = LOCATIONS.find(l => l.name === type) || LOCATIONS[2];
-            return html`<span className=${`px-2 py-0.5 rounded text-xs font-medium border ${loc.color}`}>${type}</span>`;
-        };
-
-        const Modal = ({ isOpen, onClose, title, children }) => {
-            if (!isOpen) return null;
-            return html`
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
-                        <div className="flex justify-between items-center p-4 border-b">
-                            <h3 className="font-bold text-lg">${title}</h3>
-                            <button onClick=${onClose} className="p-1 hover:bg-gray-100 rounded-full"><${IconX} /></button>
+            <!-- 2. Pantry View -->
+            <div v-if="activeTab === 'pantry'" class="space-y-3">
+                <div v-if="pantry.length === 0" class="text-center py-20 text-gray-400">
+                    <p>冰箱空空如也~</p>
+                </div>
+                <div v-for="item in pantry" :key="item.id" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h4 class="font-bold text-gray-800">{{ item.name }}</h4>
+                            <span class="px-2 py-0.5 rounded text-xs font-medium border" :class="getLocationClass(item.location)">{{ item.location }}</span>
                         </div>
-                        <div className="p-4 overflow-y-auto hide-scrollbar">
-                            ${children}
+                        <div class="flex items-center gap-3">
+                            <button @click="updatePantryQuantity(item.id, -1)" class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-gray-600">-</button>
+                            <span class="text-sm font-medium w-12 text-center">{{ item.quantity }} {{ item.unit }}</span>
+                            <button @click="updatePantryQuantity(item.id, 1)" class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-gray-600">+</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 items-end">
+                        <button @click="deletePantryItem(item.id)" class="text-gray-300 p-1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                        <button @click="addToShoppingList(item, 1); showToast('已加入清单')" class="text-emerald-600 bg-emerald-50 p-2 rounded-full active:bg-emerald-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Shopping List View -->
+            <div v-if="activeTab === 'shopping'">
+                <div v-if="shoppingList.length === 0" class="text-center py-20 text-gray-400">
+                    <p>购物清单是空的，真省钱！</p>
+                </div>
+
+                <div v-for="(items, loc) in groupedShoppingList" :key="loc" class="mb-6">
+                    <div v-if="items.length > 0">
+                        <h3 class="font-bold px-1 mb-2 text-sm flex items-center gap-2" :class="loc === '德超' ? 'text-blue-700' : loc === '亚超' ? 'text-red-700' : 'text-gray-600'">
+                            {{ loc }} ({{ items.length }})
+                        </h3>
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                            <div v-for="item in items" :key="item.id" @click="toggleShoppingItem(item.id)"
+                                class="p-3 flex items-center justify-between cursor-pointer transition-colors"
+                                :class="item.checked ? 'bg-gray-50' : 'bg-white'">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors"
+                                        :class="item.checked ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'">
+                                        <svg v-if="item.checked" class="text-white w-3 h-3" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </div>
+                                    <span :class="item.checked ? 'text-gray-400 line-through' : 'text-gray-800 font-medium'">{{ item.name }}</span>
+                                </div>
+                                
+                                <div class="flex items-center gap-2" @click.stop>
+                                    <div v-if="!item.checked" class="flex items-center bg-gray-100 rounded">
+                                        <input type="number" step="0.5" class="w-12 bg-transparent text-center text-sm font-bold text-emerald-600 p-1 border-none focus:ring-0 outline-none"
+                                            v-model="item.quantity" @change="saveData">
+                                        <span class="text-xs text-gray-500 pr-2">{{ item.unit }}</span>
+                                    </div>
+                                    <span v-else class="text-sm text-gray-400 mr-2">{{ item.quantity }} {{ item.unit }}</span>
+                                    
+                                    <button @click="deleteShoppingItem(item.id)" class="text-gray-300 hover:text-red-400 p-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            `;
-        };
 
-        // --- App 主逻辑 ---
-        const App = () => {
-            const [activeTab, setActiveTab] = useState('recipes');
-            const [recipes, setRecipes] = useState([]);
-            const [pantry, setPantry] = useState([]);
-            const [shoppingList, setShoppingList] = useState([]);
-            const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
-            const [isPantryModalOpen, setIsPantryModalOpen] = useState(false);
+                <button v-if="hasCheckedItems" @click="clearCheckedItems" class="w-full mt-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm border border-red-100 shadow-sm">
+                    清除已买物品
+                </button>
+            </div>
+        </main>
 
-            // 加载数据
-            useEffect(() => {
-                const loadedRecipes = SafeStorage.getItem('recipes');
-                const loadedPantry = SafeStorage.getItem('pantry');
-                const loadedShopping = SafeStorage.getItem('shoppingList');
-                if (loadedRecipes) setRecipes(JSON.parse(loadedRecipes));
-                if (loadedPantry) setPantry(JSON.parse(loadedPantry));
-                if (loadedShopping) setShoppingList(JSON.parse(loadedShopping));
-            }, []);
+        <!-- Navigation -->
+        <nav class="bg-white border-t border-gray-200 pb-safe pt-2 px-6 flex justify-between items-center z-20 sticky bottom-0">
+            <button @click="activeTab = 'recipes'" class="flex flex-col items-center gap-1 p-2 w-16 transition-colors" :class="activeTab === 'recipes' ? 'text-emerald-600' : 'text-gray-400'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
+                <span class="text-[10px] font-bold">菜谱</span>
+            </button>
+            <button @click="activeTab = 'pantry'" class="flex flex-col items-center gap-1 p-2 w-16 transition-colors" :class="activeTab === 'pantry' ? 'text-emerald-600' : 'text-gray-400'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6Z"/><path d="M5 10h14"/><path d="M15 2v24"/></svg>
+                <span class="text-[10px] font-bold">库存</span>
+            </button>
+            <button @click="activeTab = 'shopping'" class="flex flex-col items-center gap-1 p-2 w-16 transition-colors" :class="activeTab === 'shopping' ? 'text-emerald-600' : 'text-gray-400'">
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                    <span v-if="uncheckedCount > 0" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{{ uncheckedCount }}</span>
+                </div>
+                <span class="text-[10px] font-bold">清单</span>
+            </button>
+        </nav>
 
-            // 保存数据
-            useEffect(() => { SafeStorage.setItem('recipes', JSON.stringify(recipes)); }, [recipes]);
-            useEffect(() => { SafeStorage.setItem('pantry', JSON.stringify(pantry)); }, [pantry]);
-            useEffect(() => { SafeStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }, [shoppingList]);
-
-            // 业务逻辑函数
-            const addRecipe = (newRecipe) => {
-                setRecipes([...recipes, { ...newRecipe, id: Date.now() }]);
-                setIsRecipeModalOpen(false);
-            };
-
-            const deleteRecipe = (id) => {
-                if(confirm('确定删除这个菜谱吗？')) {
-                    setRecipes(recipes.filter(r => r.id !== id));
-                }
-            };
-
-            const addPantryItem = (item) => {
-                setPantry([...pantry, { ...item, id: Date.now() }]);
-                setIsPantryModalOpen(false);
-            };
-
-            const updatePantryQuantity = (id, delta) => {
-                setPantry(pantry.map(item => {
-                    if (item.id === id) {
-                        const newQty = Math.max(0, parseFloat(item.quantity) + delta);
-                        return { ...item, quantity: newQty };
-                    }
-                    return item;
-                }));
-            };
-            
-            const deletePantryItem = (id) => setPantry(pantry.filter(item => item.id !== id));
-
-            const addToShoppingList = (item, quantityOverride = null) => {
-                setShoppingList(prevList => {
-                    const qtyToAdd = quantityOverride !== null ? quantityOverride : (item.quantity || 1);
-                    const existingIndex = prevList.findIndex(i => i.name === item.name && i.location === item.location && !i.checked);
+        <!-- Modal -->
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="flex justify-between items-center p-4 border-b">
+                    <h3 class="font-bold text-lg">{{ activeTab === 'recipes' ? '新建菜谱' : '添加库存' }}</h3>
+                    <button @click="showModal = false" class="p-1 hover:bg-gray-100 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+                <div class="p-4 overflow-y-auto hide-scrollbar">
                     
-                    if (existingIndex >= 0) {
-                        const newList = [...prevList];
-                        const oldQty = parseFloat(newList[existingIndex].quantity) || 0;
-                        const addQty = parseFloat(qtyToAdd) || 0;
-                        newList[existingIndex] = { ...newList[existingIndex], quantity: oldQty + addQty };
-                        return newList;
-                    } else {
-                        return [...prevList, {
-                            id: Date.now() + Math.random(), 
-                            name: item.name,
-                            location: item.location,
-                            quantity: qtyToAdd,
-                            unit: item.unit,
-                            checked: false
-                        }];
-                    }
-                });
-            };
-
-            const addRecipeToShoppingList = (recipe) => {
-                recipe.ingredients.forEach(ing => addToShoppingList(ing));
-                alert(`已将 "${recipe.name}" 的所有食材加入购物清单`);
-                setActiveTab('shopping');
-            };
-
-            const toggleShoppingItem = (id) => {
-                setShoppingList(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
-            };
-
-            const updateShoppingItemQuantity = (id, newQty) => {
-                 setShoppingList(prev => prev.map(item => item.id === id ? { ...item, quantity: newQty } : item));
-            };
-
-            const clearCheckedShoppingItems = () => {
-                if(confirm('确定清除已购买的物品吗？')) {
-                    setShoppingList(prev => prev.filter(item => !item.checked));
-                }
-            };
-
-            const deleteShoppingItem = (id) => setShoppingList(prev => prev.filter(item => item.id !== id));
-
-            // --- 视图组件 (Forms) ---
-
-            const RecipeForm = ({ onSubmit }) => {
-                const [name, setName] = useState('');
-                const [ingredients, setIngredients] = useState([{ name: '', quantity: 1, unit: '个', location: '德超' }]);
-
-                const handleIngChange = (index, field, value) => {
-                    const newIngs = [...ingredients];
-                    newIngs[index][field] = value;
-                    setIngredients(newIngs);
-                };
-
-                const addIngField = () => setIngredients([...ingredients, { name: '', quantity: 1, unit: '个', location: '德超' }]);
-                const removeIngField = (index) => setIngredients(ingredients.filter((_, i) => i !== index));
-                const handleSubmit = (e) => {
-                    e.preventDefault();
-                    if (!name.trim()) return;
-                    onSubmit({ name, ingredients: ingredients.filter(i => i.name.trim() !== '') });
-                };
-
-                return html`
-                    <form onSubmit=${handleSubmit} className="space-y-4">
+                    <!-- Recipe Form -->
+                    <form v-if="activeTab === 'recipes'" @submit.prevent="saveRecipe" class="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold mb-1 text-gray-700">菜谱名称</label>
-                            <input className="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" 
-                                value=${name} onInput=${e => setName(e.target.value)} placeholder="例如：西红柿炒蛋" required />
+                            <label class="block text-sm font-bold mb-1">菜谱名称</label>
+                            <input v-model="newRecipe.name" class="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="例如：西红柿炒蛋" required>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-2 text-gray-700">食材列表</label>
-                            ${ingredients.map((ing, idx) => html`
-                                <div className="flex flex-col gap-2 mb-3 p-3 bg-gray-50 rounded border border-gray-100">
-                                    <div className="flex gap-2">
-                                        <input className="flex-1 border p-2 rounded text-sm" placeholder="食材名" 
-                                            value=${ing.name} onInput=${e => handleIngChange(idx, 'name', e.target.value)} required />
-                                        <button type="button" onClick=${() => removeIngField(idx)} className="text-red-400 p-1"><${IconTrash} /></button>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input type="number" step="0.5" className="w-16 border p-2 rounded text-sm" 
-                                            value=${ing.quantity} onInput=${e => handleIngChange(idx, 'quantity', e.target.value)} />
-                                        <select className="w-16 border p-2 rounded text-sm bg-white" 
-                                            value=${ing.unit} onChange=${e => handleIngChange(idx, 'unit', e.target.value)}>
-                                            ${UNITS.map(u => html`<option value=${u}>${u}</option>`)}
-                                        </select>
-                                        <select className="flex-1 border p-2 rounded text-sm bg-white" 
-                                            value=${ing.location} onChange=${e => handleIngChange(idx, 'location', e.target.value)}>
-                                            ${LOCATIONS.map(l => html`<option value=${l.name}>${l.name}</option>`)}
-                                        </select>
-                                    </div>
+                            <label class="block text-sm font-bold mb-2">食材列表</label>
+                            <div v-for="(ing, idx) in newRecipe.ingredients" :key="idx" class="flex flex-col gap-2 mb-3 p-3 bg-gray-50 rounded border border-gray-100">
+                                <div class="flex gap-2">
+                                    <input v-model="ing.name" class="flex-1 border p-2 rounded text-sm" placeholder="食材名" required>
+                                    <button type="button" @click="newRecipe.ingredients.splice(idx, 1)" class="text-red-400 p-1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                                 </div>
-                            `)}
-                            <button type="button" onClick=${addIngField} className="text-sm text-emerald-600 font-medium flex items-center gap-1">
-                                <${IconPlus} /> 添加食材
+                                <div class="flex gap-2">
+                                    <input type="number" step="0.5" v-model="ing.quantity" class="w-16 border p-2 rounded text-sm">
+                                    <select v-model="ing.unit" class="w-16 border p-2 rounded text-sm bg-white">
+                                        <option v-for="u in units" :key="u" :value="u">{{ u }}</option>
+                                    </select>
+                                    <select v-model="ing.location" class="flex-1 border p-2 rounded text-sm bg-white">
+                                        <option v-for="l in locations" :key="l.id" :value="l.name">{{ l.name }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" @click="addIngredientField" class="text-sm text-emerald-600 font-medium flex items-center gap-1">
+                                + 添加食材
                             </button>
                         </div>
-                        <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-md active:scale-95 transition-transform">保存菜谱</button>
+                        <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-md">保存菜谱</button>
                     </form>
-                `;
-            };
 
-            const PantryForm = ({ onSubmit }) => {
-                const [name, setName] = useState('');
-                const [quantity, setQuantity] = useState(1);
-                const [unit, setUnit] = useState('个');
-                const [location, setLocation] = useState('德超');
-                const handleSubmit = (e) => {
-                    e.preventDefault();
-                    if(!name.trim()) return;
-                    onSubmit({ name, quantity, unit, location });
-                };
-
-                return html`
-                    <form onSubmit=${handleSubmit} className="space-y-4">
+                    <!-- Pantry Form -->
+                    <form v-if="activeTab === 'pantry'" @submit.prevent="savePantryItem" class="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold mb-1">物品名称</label>
-                            <input className="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" 
-                                value=${name} onInput=${e => setName(e.target.value)} placeholder="例如：生抽" required />
+                            <label class="block text-sm font-bold mb-1">物品名称</label>
+                            <input v-model="newPantryItem.name" class="w-full border p-2 rounded focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="例如：生抽" required>
                         </div>
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <label className="block text-sm font-bold mb-1">数量</label>
-                                <input type="number" step="0.1" className="w-full border p-2 rounded" 
-                                    value=${quantity} onInput=${e => setQuantity(e.target.value)} />
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="block text-sm font-bold mb-1">数量</label>
+                                <input type="number" step="0.1" v-model="newPantryItem.quantity" class="w-full border p-2 rounded">
                             </div>
-                            <div className="w-24">
-                                <label className="block text-sm font-bold mb-1">单位</label>
-                                <select className="w-full border p-2 rounded bg-white" 
-                                    value=${unit} onChange=${e => setUnit(e.target.value)}>
-                                    ${UNITS.map(u => html`<option value=${u}>${u}</option>`)}
+                            <div class="w-24">
+                                <label class="block text-sm font-bold mb-1">单位</label>
+                                <select v-model="newPantryItem.unit" class="w-full border p-2 rounded bg-white">
+                                    <option v-for="u in units" :key="u" :value="u">{{ u }}</option>
                                 </select>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold mb-1">购买地点</label>
-                            <div className="flex gap-2">
-                                ${LOCATIONS.map(l => html`
-                                    <button type="button" onClick=${() => setLocation(l.name)}
-                                        className=${`flex-1 py-2 rounded border text-sm ${location === l.name ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-gray-200'}`}>
-                                        ${l.name}
-                                    </button>
-                                `)}
+                            <label class="block text-sm font-bold mb-1">购买地点</label>
+                            <div class="flex gap-2">
+                                <button type="button" v-for="l in locations" :key="l.id" 
+                                    @click="newPantryItem.location = l.name"
+                                    class="flex-1 py-2 rounded border text-sm"
+                                    :class="newPantryItem.location === l.name ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-gray-200'">
+                                    {{ l.name }}
+                                </button>
                             </div>
                         </div>
-                        <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-md mt-4">添加库存</button>
+                        <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold shadow-md mt-4">添加库存</button>
                     </form>
-                `;
-            };
-
-            // --- 视图组件 (Lists) ---
-
-            const RecipesView = () => html`
-                <div className="space-y-4 pb-24">
-                    ${recipes.length === 0 ? html`
-                        <div className="text-center py-20 text-gray-400">
-                            <div className="flex justify-center mb-4 text-gray-300"><${IconChef} /></div>
-                            <p>还没有菜谱，快去添加吧！</p>
-                        </div>
-                    ` : recipes.map(recipe => html`
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                            <div className="flex justify-between items-start mb-3">
-                                <h3 className="font-bold text-lg text-gray-800">${recipe.name}</h3>
-                                <button onClick=${() => deleteRecipe(recipe.id)} className="text-gray-300 hover:text-red-500"><${IconTrash} /></button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                ${recipe.ingredients.map((ing, i) => html`
-                                    <span className="text-sm bg-gray-50 px-2 py-1 rounded text-gray-600 border border-gray-100">
-                                        ${ing.name} ${ing.quantity}${ing.unit} <span className=${`text-xs ml-1 ${ing.location === '德超' ? 'text-blue-500' : ing.location === '亚超' ? 'text-red-500' : 'text-gray-400'}`}>●</span>
-                                    </span>
-                                `)}
-                            </div>
-                            <button onClick=${() => addRecipeToShoppingList(recipe)}
-                                className="w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 py-2 rounded-lg text-sm font-bold hover:bg-emerald-100 transition-colors">
-                                <${IconCart} /> 加入购物单
-                            </button>
-                        </div>
-                    `)}
                 </div>
-            `;
+            </div>
+        </div>
+    </div>
 
-            const PantryView = () => html`
-                <div className="space-y-3 pb-24">
-                     ${pantry.length === 0 ? html`
-                        <div className="text-center py-20 text-gray-400">
-                            <div className="flex justify-center mb-4 text-gray-300"><${IconFridge} /></div>
-                            <p>冰箱空空如也~</p>
-                        </div>
-                    ` : pantry.map(item => html`
-                        <div className="bg-white p-3 rounded-
+    <script>
+        const { createApp, ref, computed, watch, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // Constants
+                const locations = [
+                    { id: 'de', name: '德超', class: 'bg-blue-100 text-blue-800 border-blue-200' },
+                    { id: 'asia', name: '亚超', class: 'bg-red-100 text-red-800 border-red-200' },
+                    { id: 'other', name: '其他', class: 'bg-gray-100 text-gray-800 border-gray-200' }
+                ];
+                const units = ['个', 'g', 'kg', '包', '瓶', '盒', 'L', 'ml'];
+
+                // State
+                const activeTab = ref('recipes');
+                const showModal = ref(false);
+                const recipes = ref([]);
+                const pantry = ref([]);
+                const shoppingList = ref([]);
+
+                // Forms
+                const newRecipe = ref({ name: '', ingredients: [] });
+                const newPantryItem = ref({ name: '', quantity: 1, unit: '个', location: '德超' });
+
+                // Load Data
+                onMounted(() => {
+                   
