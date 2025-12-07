@@ -3,56 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的智能厨房 (本地版)</title>
+    <title>我的智能厨房</title>
     
-    <!-- 1. 引入 Tailwind CSS -->
+    <!-- 1. 引入样式库 -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 2. 引入 React 和 React DOM -->
+    <!-- 2. 引入 React 核心库 (使用更稳定的 unpkg 源) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- 3. 引入 Babel -->
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- 3. 引入 Babel (升级到 v7，解决编译白屏问题) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body { padding-bottom: env(safe-area-inset-bottom); }
+        body { padding-bottom: env(safe-area-inset-bottom); background-color: #f8fafc; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        /* 简单的加载动画 */
+        .loading { display: flex; justify-content: center; items-align: center; height: 100vh; color: #059669; font-weight: bold; padding-top: 40vh; }
     </style>
 </head>
-<body class="bg-slate-50 text-gray-900">
-    <div id="root"></div>
+<body>
+    <!-- 挂载点：如果不显示 App，会显示 Loading 文字 -->
+    <div id="root">
+        <div class="loading">正在启动智能厨房...<br/><span style="font-size:12px; color:#666; font-weight:normal">如果是第一次打开，请稍等...</span></div>
+    </div>
 
+    <!-- 错误捕捉脚本：如果白屏，这里会把错误打印在屏幕上 -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div style="padding:20px; color:red; font-family:monospace; background:#fff;">
+                    <h3 style="font-weight:bold; font-size:18px;">程序发生错误 :(</h3>
+                    <p style="margin-top:10px;">${message}</p>
+                    <p style="font-size:12px; color:#666;">位置: 行 ${lineno}</p>
+                    <p style="font-size:12px; color:#999; margin-top:10px;">请截图发给开发者。</p>
+                </div>
+            `;
+        };
+    </script>
+
+    <!-- React 逻辑 -->
     <script type="text/babel">
-        // --- 图标组件 (保持不变) ---
+        // 为了防止变量冲突，我们显式使用 React.useState
+        const { useState, useEffect } = React;
+
+        // --- 图标组件 (SVG) ---
         const Icons = {
-            ChefHat: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>,
-            ShoppingCart: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>,
-            Refrigerator: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6Z"/><path d="M5 10h14"/><path d="M15 2v20"/></svg>,
-            Plus: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
-            Minus: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/></svg>,
-            Trash2: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
-            Check: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
-            MapPin: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
-            Save: ({size=24, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            ChefHat: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>,
+            ShoppingCart: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>,
+            Refrigerator: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 6a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6Z"/><path d="M5 10h14"/><path d="M15 2v20"/></svg>,
+            Plus: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            Minus: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14"/></svg>,
+            Trash2: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>,
+            Check: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
+            MapPin: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+            Save: ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         };
 
         const LOCATIONS = ["德超", "亚超", "菜市场", "网上超市", "其他"];
 
         function App() {
-            const { useState, useEffect } = React;
             const [activeTab, setActiveTab] = useState('recipes');
             
-            // --- 纯本地存储逻辑 ---
-            // 初始化时从 localStorage 读取，如果没有则为空数组
-            const [recipes, setRecipes] = useState(() => JSON.parse(localStorage.getItem('kitchen_recipes')) || []);
-            const [shoppingList, setShoppingList] = useState(() => JSON.parse(localStorage.getItem('kitchen_shopping')) || []);
-            const [inventory, setInventory] = useState(() => JSON.parse(localStorage.getItem('kitchen_inventory')) || []);
+            // --- 本地存储数据初始化 (带容错处理) ---
+            const safeParse = (key, fallback) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : fallback;
+                } catch (e) {
+                    return fallback;
+                }
+            };
 
-            // 监听变化并自动保存到 localStorage
-            useEffect(() => localStorage.setItem('kitchen_recipes', JSON.stringify(recipes)), [recipes]);
-            useEffect(() => localStorage.setItem('kitchen_shopping', JSON.stringify(shoppingList)), [shoppingList]);
-            useEffect(() => localStorage.setItem('kitchen_inventory', JSON.stringify(inventory)), [inventory]);
+            const [recipes, setRecipes] = useState(() => safeParse('kitchen_recipes', []));
+            const [shoppingList, setShoppingList] = useState(() => safeParse('kitchen_shopping', []));
+            const [inventory, setInventory] = useState(() => safeParse('kitchen_inventory', []));
+
+            // --- 自动保存 ---
+            useEffect(() => { localStorage.setItem('kitchen_recipes', JSON.stringify(recipes)); }, [recipes]);
+            useEffect(() => { localStorage.setItem('kitchen_shopping', JSON.stringify(shoppingList)); }, [shoppingList]);
+            useEffect(() => { localStorage.setItem('kitchen_inventory', JSON.stringify(inventory)); }, [inventory]);
 
             // --- 业务逻辑 ---
             const addToShoppingList = (items) => {
@@ -60,13 +91,12 @@
                 let addedCount = 0;
                 
                 items.forEach(item => {
-                    // 简单查重：同名同地点且未购买的，不重复添加
                     const exists = newList.find(i => 
                         i.name === item.name && i.location === item.location && !i.completed
                     );
                     if (!exists) {
                         newList.push({
-                            id: Date.now() + Math.random(), // 简单的唯一ID
+                            id: Date.now() + Math.random(),
                             name: item.name,
                             location: item.location,
                             completed: false,
@@ -98,195 +128,192 @@
                 }]);
             };
 
-            // --- 视图组件 ---
-
-            // 1. 菜谱视图
-            const RecipeView = () => {
-                const [isAdding, setIsAdding] = useState(false);
-                const [newRecipeName, setNewRecipeName] = useState("");
-                const [newIngList, setNewIngList] = useState([]);
-                const [tempIngName, setTempIngName] = useState("");
-                const [tempIngLoc, setTempIngLoc] = useState("德超");
-                const [tempIngAmt, setTempIngAmt] = useState("");
+            // --- 视图: 新增菜谱 ---
+            const RecipeForm = ({ onSave, onCancel }) => {
+                const [name, setName] = useState("");
+                const [ingredients, setIngredients] = useState([]);
+                const [iName, setIName] = useState("");
+                const [iLoc, setILoc] = useState("德超");
+                const [iAmt, setIAmt] = useState("");
 
                 const addIng = () => {
-                    if (!tempIngName) return;
-                    setNewIngList([...newIngList, { name: tempIngName, location: tempIngLoc, amount: tempIngAmt }]);
-                    setTempIngName(""); setTempIngAmt("");
+                    if (!iName) return;
+                    setIngredients([...ingredients, { name: iName, location: iLoc, amount: iAmt }]);
+                    setIName(""); setIAmt("");
                 };
 
-                const save = () => {
-                    if (!newRecipeName || newIngList.length === 0) return alert("请填写菜名并至少添加一个食材");
-                    
-                    const newRecipe = {
-                        id: Date.now(),
-                        name: newRecipeName,
-                        ingredients: newIngList
-                    };
-                    
-                    setRecipes([...recipes, newRecipe]);
-                    setIsAdding(false); 
-                    setNewRecipeName(""); 
-                    setNewIngList([]);
+                const handleSave = () => {
+                    if (!name || ingredients.length === 0) return alert("请填写完整");
+                    onSave({ id: Date.now(), name, ingredients });
                 };
-
-                const deleteRecipe = (id) => {
-                    if(confirm("确定删除吗？")) setRecipes(recipes.filter(r => r.id !== id));
-                };
-
-                if (isAdding) {
-                    return (
-                        <div className="bg-white p-4 rounded-lg shadow-md animate-fade-in">
-                            <h3 className="text-lg font-bold mb-3 text-emerald-700">新菜谱</h3>
-                            <input className="w-full p-2 border border-gray-300 rounded mb-3" placeholder="菜名 (如: 红烧肉)" value={newRecipeName} onChange={e=>setNewRecipeName(e.target.value)} />
-                            
-                            <div className="bg-emerald-50 p-3 rounded-lg mb-3 border border-emerald-100">
-                                <div className="flex gap-2 mb-2">
-                                    <input className="flex-1 p-2 border rounded text-sm" placeholder="食材名" value={tempIngName} onChange={e=>setTempIngName(e.target.value)} />
-                                    <input className="w-16 p-2 border rounded text-sm" placeholder="量" value={tempIngAmt} onChange={e=>setTempIngAmt(e.target.value)} />
-                                </div>
-                                <div className="flex gap-2">
-                                    <select className="flex-1 p-2 border rounded text-sm bg-white" value={tempIngLoc} onChange={e=>setTempIngLoc(e.target.value)}>
-                                        {LOCATIONS.map(l=><option key={l} value={l}>{l}</option>)}
-                                    </select>
-                                    <button onClick={addIng} className="bg-emerald-600 text-white px-4 rounded text-sm font-medium"><Icons.Plus size={16}/></button>
-                                </div>
-                            </div>
-
-                            <div className="mb-4 max-h-40 overflow-y-auto">
-                                {newIngList.map((ing, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-gray-100 last:border-0">
-                                        <span>{ing.name} <span className="text-gray-500 text-xs">({ing.amount})</span> <span className="text-emerald-600 text-xs bg-emerald-50 px-1 rounded">@{ing.location}</span></span>
-                                        <button onClick={()=>setNewIngList(newIngList.filter((_,i)=>i!==idx))} className="text-red-400 p-1"><Icons.Trash2 size={14}/></button>
-                                    </div>
-                                ))}
-                                {newIngList.length === 0 && <div className="text-xs text-gray-400 text-center py-2">暂无食材</div>}
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button onClick={save} className="flex-1 bg-emerald-600 text-white py-2 rounded shadow font-medium flex justify-center items-center gap-1"><Icons.Save size={16}/> 保存</button>
-                                <button onClick={()=>setIsAdding(false)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-medium">取消</button>
-                            </div>
-                        </div>
-                    );
-                }
 
                 return (
-                    <div className="space-y-4 pb-24">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-gray-800">我的菜谱</h2>
-                            <button onClick={()=>setIsAdding(true)} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-full shadow text-sm font-medium hover:bg-emerald-700 transition"><Icons.Plus size={16}/> 添加</button>
-                        </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md animate-fade-in mb-4">
+                        <h3 className="text-lg font-bold mb-3 text-emerald-700">新菜谱</h3>
+                        <input className="w-full p-2 border rounded mb-3" placeholder="菜名" value={name} onChange={e=>setName(e.target.value)} />
                         
-                        {recipes.length === 0 && <div className="text-center text-gray-400 py-10">还没有菜谱，快去添加一个吧</div>}
-
-                        <div className="grid gap-3">
-                            {recipes.map(recipe => (
-                                <div key={recipe.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-lg font-bold text-gray-800">{recipe.name}</h3>
-                                        <button onClick={()=>deleteRecipe(recipe.id)} className="text-gray-300 hover:text-red-500 p-1"><Icons.Trash2 size={16}/></button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1 mb-3">
-                                        {recipe.ingredients.map((ing, idx) => (
-                                            <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{ing.name}</span>
-                                        ))}
-                                    </div>
-                                    <button onClick={()=>cookRecipe(recipe)} className="w-full flex justify-center items-center gap-2 bg-emerald-50 text-emerald-700 py-2 rounded-lg border border-emerald-100 text-sm font-medium active:bg-emerald-100 transition"><Icons.ShoppingCart size={14}/> 加入购物单</button>
+                        <div className="bg-emerald-50 p-3 rounded mb-3 border border-emerald-100">
+                            <div className="flex gap-2 mb-2">
+                                <input className="flex-1 p-2 border rounded text-sm" placeholder="食材" value={iName} onChange={e=>setIName(e.target.value)} />
+                                <input className="w-16 p-2 border rounded text-sm" placeholder="量" value={iAmt} onChange={e=>setIAmt(e.target.value)} />
+                            </div>
+                            <div className="flex gap-2">
+                                <select className="flex-1 p-2 border rounded text-sm bg-white" value={iLoc} onChange={e=>setILoc(e.target.value)}>
+                                    {LOCATIONS.map(l=><option key={l} value={l}>{l}</option>)}
+                                </select>
+                                <button onClick={addIng} className="bg-emerald-600 text-white px-3 rounded"><Icons.Plus size={16}/></button>
+                            </div>
+                        </div>
+                        <div className="mb-4">
+                            {ingredients.map((ing, idx) => (
+                                <div key={idx} className="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                    <span>{ing.name} ({ing.amount}) <span className="text-emerald-600">@{ing.location}</span></span>
+                                    <button onClick={()=>setIngredients(ingredients.filter((_,i)=>i!==idx))} className="text-red-400"><Icons.Trash2 size={14}/></button>
                                 </div>
                             ))}
                         </div>
+                        <div className="flex gap-3">
+                            <button onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-2 rounded">保存</button>
+                            <button onClick={onCancel} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded">取消</button>
+                        </div>
                     </div>
                 );
             };
 
-            // 2. 采购视图
-            const ShoppingView = () => {
-                const grouped = shoppingList.reduce((acc, item) => {
-                    const loc = item.location || "其他";
-                    if(!acc[loc]) acc[loc]=[]; acc[loc].push(item); return acc;
-                }, {});
-                const [itemName, setItemName] = useState("");
-                const [itemLoc, setItemLoc] = useState("德超");
+            // --- 主界面渲染 ---
+            return (
+                <div className="min-h-screen font-sans max-w-md mx-auto relative shadow-2xl bg-slate-50 text-gray-900">
+                    <header className="bg-emerald-600 text-white px-4 py-3 shadow sticky top-0 z-20 flex justify-between items-center">
+                        <div className="flex items-center gap-2"><Icons.ChefHat size={20}/><h1 className="text-lg font-bold">智能厨房</h1></div>
+                    </header>
+                    
+                    <main className="p-4 pb-24">
+                        {/* 1. 菜谱页面 */}
+                        {activeTab === 'recipes' && (
+                            <div className="space-y-4">
+                                <RecipeFormWrapper 
+                                    recipes={recipes} 
+                                    setRecipes={setRecipes} 
+                                    onCook={cookRecipe} 
+                                    RecipeForm={RecipeForm}
+                                />
+                            </div>
+                        )}
 
-                const manualAdd = () => {
-                    if(!itemName) return;
-                    addToShoppingList([{ name: itemName, location: itemLoc }]);
-                    setItemName("");
-                };
-                
-                const toggleItem = (id) => {
-                    setShoppingList(shoppingList.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
-                };
+                        {/* 2. 采购页面 */}
+                        {activeTab === 'shopping' && (
+                            <ShoppingListWrapper 
+                                list={shoppingList} 
+                                setList={setShoppingList} 
+                                addManual={addToShoppingList} 
+                            />
+                        )}
 
-                const clearDone = () => {
-                    if(confirm("清除已买?")) setShoppingList(shoppingList.filter(i => !i.completed));
-                };
+                        {/* 3. 库存页面 */}
+                        {activeTab === 'inventory' && (
+                            <InventoryWrapper 
+                                inventory={inventory} 
+                                setInventory={setInventory} 
+                                restock={restockItem} 
+                            />
+                        )}
+                    </main>
 
-                return (
-                    <div className="space-y-4 pb-24">
-                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-gray-800">采购清单</h2>
-                            {shoppingList.some(i=>i.completed) && <button onClick={clearDone} className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded font-medium">清除已买</button>}
-                        </div>
-                        
-                        <div className="flex gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-                            <input className="flex-1 p-2 bg-gray-50 rounded text-sm outline-none" placeholder="临时加点啥..." value={itemName} onChange={e=>setItemName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&manualAdd()} />
-                            <select className="p-2 bg-gray-50 rounded text-xs" value={itemLoc} onChange={e=>setItemLoc(e.target.value)}>{LOCATIONS.map(l=><option key={l} value={l}>{l}</option>)}</select>
-                            <button onClick={manualAdd} className="bg-emerald-600 text-white px-3 rounded hover:bg-emerald-700"><Icons.Plus size={18}/></button>
-                        </div>
-                        
-                        {Object.keys(grouped).length === 0 && <div className="text-center text-gray-400 py-10">清单空空的</div>}
+                    <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-200 flex justify-around pb-safe pt-2 shadow-lg z-30">
+                        <NavBtn id="recipes" icon={Icons.ChefHat} label="菜谱" active={activeTab} set={setActiveTab} />
+                        <NavBtn id="shopping" icon={Icons.ShoppingCart} label="采购" active={activeTab} set={setActiveTab} count={shoppingList.filter(i=>!i.completed).length} />
+                        <NavBtn id="inventory" icon={Icons.Refrigerator} label="库存" active={activeTab} set={setActiveTab} />
+                    </nav>
+                </div>
+            );
+        }
 
-                        {Object.keys(grouped).map(loc => (
-                            <div key={loc} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="bg-gray-50 px-3 py-2 border-b border-gray-100 flex justify-between items-center">
-                                    <div className="flex items-center gap-2"><Icons.MapPin size={14} className="text-emerald-600"/><span className="font-semibold text-gray-700 text-sm">{loc}</span></div>
-                                    <span className="text-xs text-gray-400 bg-white px-2 py-0.5 rounded-full border">{grouped[loc].filter(i=>!i.completed).length} 待买</span>
+        // --- 子组件提取 (防止 JSX 嵌套过深导致编译错误) ---
+
+        const NavBtn = ({ id, icon: Icon, label, active, set, count }) => (
+            <button onClick={()=>set(id)} className={`flex flex-col items-center p-2 w-1/3 relative transition-colors ${active === id ? 'text-emerald-600' : 'text-gray-400'}`}>
+                <Icon size={24}/>
+                <span className="text-[10px] mt-1">{label}</span>
+                {count > 0 && <span className="absolute top-1 right-8 w-4 h-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white">{count}</span>}
+            </button>
+        );
+
+        const RecipeFormWrapper = ({ recipes, setRecipes, onCook, RecipeForm }) => {
+            const [isAdding, setIsAdding] = useState(false);
+            return (
+                <>
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">我的菜谱</h2>
+                        <button onClick={()=>setIsAdding(true)} className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-full shadow text-sm"><Icons.Plus size={16}/> 添加</button>
+                    </div>
+                    {isAdding && <RecipeForm onSave={(r)=>{setRecipes([...recipes, r]); setIsAdding(false);}} onCancel={()=>setIsAdding(false)} />}
+                    <div className="grid gap-3">
+                        {recipes.map(r => (
+                            <div key={r.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="text-lg font-bold">{r.name}</h3>
+                                    <button onClick={()=>{if(confirm('删除?')) setRecipes(recipes.filter(i=>i.id!==r.id))}} className="text-gray-300"><Icons.Trash2 size={16}/></button>
                                 </div>
-                                <div className="divide-y divide-gray-50">
-                                    {grouped[loc].map(item => (
-                                        <div key={item.id} onClick={()=>toggleItem(item.id)} className={`flex items-center p-3 cursor-pointer select-none transition-colors ${item.completed ? 'bg-gray-50' : 'active:bg-emerald-50'}`}>
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${item.completed ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'}`}>{item.completed && <Icons.Check size={12} className="text-white"/>}</div>
-                                            <div className={`text-sm flex-1 ${item.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.name}</div>
-                                        </div>
-                                    ))}
+                                <div className="flex flex-wrap gap-1 mb-3">
+                                    {r.ingredients.map((ing, idx)=><span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{ing.name}</span>)}
                                 </div>
+                                <button onClick={()=>onCook(r)} className="w-full flex justify-center items-center gap-2 bg-emerald-50 text-emerald-700 py-2 rounded-lg text-sm font-medium border border-emerald-100"><Icons.ShoppingCart size={14}/> 加入购物单</button>
                             </div>
                         ))}
                     </div>
-                );
+                </>
+            );
+        };
+
+        const ShoppingListWrapper = ({ list, setList, addManual }) => {
+            const [name, setName] = useState("");
+            const [loc, setLoc] = useState("德超");
+            const grouped = list.reduce((acc, item) => {
+                const l = item.location || "其他";
+                if(!acc[l]) acc[l]=[]; acc[l].push(item); return acc;
+            }, {});
+
+            const handleAdd = () => {
+                if(!name) return;
+                addManual([{ name, location: loc }]);
+                setName("");
             };
 
-            // 3. 库存视图
-            const InventoryView = () => {
-                const [newItem, setNewItem] = useState({ name: "", location: "德超", quantity: 1, unit: "个" });
-                const [isAdding, setIsAdding] = useState(false);
-                
-                const updateQ = (id, d) => {
-                    setInventory(inventory.map(i => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + d) } : i));
-                };
-                
-                const handleAdd = () => {
-                    if(!newItem.name) return;
-                    setInventory([...inventory, { ...newItem, id: Date.now() }]);
-                    setNewItem({ name: "", location: "德超", quantity: 1, unit: "个" }); 
-                    setIsAdding(false);
-                };
+            const toggle = (id) => setList(list.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
+            const clear = () => { if(confirm("清除已买?")) setList(list.filter(i => !i.completed)); };
 
-                const deleteInv = (id) => {
-                    if(confirm("移除该库存？")) setInventory(inventory.filter(i => i.id !== id));
-                };
-
-                return (
-                    <div className="space-y-4 pb-24">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-gray-800">冰箱库存</h2>
-                            <button onClick={()=>setIsAdding(!isAdding)} className="bg-emerald-600 text-white px-3 py-1.5 rounded-full shadow text-sm flex items-center gap-1 hover:bg-emerald-700 transition">{isAdding ? <Icons.Minus size={16}/> : <Icons.Plus size={16}/>} {isAdding ? '收起' : '入库'}</button>
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold">采购清单</h2>
+                        {list.some(i=>i.completed) && <button onClick={clear} className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">清除已买</button>}
+                    </div>
+                    <div className="flex gap-2 bg-white p-2 rounded-lg shadow-sm border">
+                        <input className="flex-1 p-2 bg-gray-50 rounded text-sm outline-none" placeholder="临时加点啥..." value={name} onChange={e=>setName(e.target.value)} />
+                        <select className="p-2 bg-gray-50 rounded text-xs" value={loc} onChange={e=>setLoc(e.target.value)}>{LOCATIONS.map(l=><option key={l} value={l}>{l}</option>)}</select>
+                        <button onClick={handleAdd} className="bg-emerald-600 text-white px-3 rounded"><Icons.Plus size={18}/></button>
+                    </div>
+                    {Object.keys(grouped).map(l => (
+                        <div key={l} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-gray-50 px-3 py-2 border-b flex justify-between"><span className="font-semibold text-sm flex items-center gap-2"><Icons.MapPin size={14} className="text-emerald-600"/>{l}</span></div>
+                            <div className="divide-y divide-gray-50">
+                                {grouped[l].map(item => (
+                                    <div key={item.id} onClick={()=>toggle(item.id)} className={`flex items-center p-3 ${item.completed ? 'bg-gray-50 opacity-50' : ''}`}>
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 ${item.completed ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'}`}>{item.completed && <Icons.Check size={12} className="text-white"/>}</div>
+                                        <div className={`text-sm flex-1 ${item.completed ? 'line-through' : ''}`}>{item.name}</div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        {isAdding && (
-                            <div className="bg-white p-4 rounded-lg shadow-md border border-emerald-100 mb-3 animate-fade-in">
-                                <div className="grid grid-cols-2 gap-2 mb-3">
-                                    <input className="p-2 border rounded text-sm" placeholder="名称" value={newItem.name} onChange={e=>setNewItem({...newItem, name: e.target.value})} />
-                                    <select className="p-2 border rounded bg-white text-sm" value={newItem.location} onChange={e=>setNewItem({...newItem, location: e.target.value})}>{LOCATIONS.map(l=><option key={l} value={l}>{l}</option>)}</select>
-         
+                    ))}
+                </div>
+            );
+        };
+
+        const InventoryWrapper = ({ inventory, setInventory, restock }) => {
+            const [isAdd, setIsAdd] = useState(false);
+            const [newItem, setNewItem] = useState({ name:"", location:"德超", quantity:1, unit:"个" });
+
+            const handleAdd = () => {
+                if(!newItem.name) return;
+                setInventory([...
