@@ -1,513 +1,488 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ChefHat, 
-  ShoppingCart, 
-  Refrigerator, 
-  Plus, 
-  Trash2, 
-  MapPin, 
-  CheckCircle, 
-  Circle, 
-  Settings,
-  Download,
-  Upload,
-  Copy,
-  AlertTriangle,
-  X
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>知味清单 Kitchen Sync</title>
+    
+    <!-- 1. 引入 Tailwind CSS (样式核心) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. 引入 Babel (用于解析浏览器中的 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 4. 引入 Lucide React 图标库 (UMD版本) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide-react/dist/umd/lucide-react.min.js"></script>
 
-// --- 组件部分 ---
+    <!-- 配置 Tailwind 的安全区域 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    padding: {
+                        'safe-top': 'env(safe-area-inset-top)',
+                        'safe-bottom': 'env(safe-area-inset-bottom)',
+                    }
+                }
+            }
+        }
+    </script>
 
-const App = () => {
-  // --- 状态管理 ---
-  const [activeTab, setActiveTab] = useState('recipes'); // recipes, inventory, shopping
-  const [showSettings, setShowSettings] = useState(false);
-  
-  // 初始数据
-  const initialRecipes = [
-    {
-      id: 1,
-      name: '西红柿炒鸡蛋',
-      ingredients: [
-        { name: '西红柿', amount: '3个', location: '德超' },
-        { name: '鸡蛋', amount: '4个', location: '德超' },
-        { name: '葱', amount: '1根', location: '亚超' }
-      ]
-    },
-    {
-      id: 2,
-      name: '红烧肉',
-      ingredients: [
-        { name: '五花肉', amount: '500g', location: '德超' },
-        { name: '生姜', amount: '1块', location: '亚超' },
-        { name: '料酒', amount: '2勺', location: '亚超' },
-        { name: '八角', amount: '2颗', location: '亚超' }
-      ]
-    }
-  ];
+    <style>
+        /* 针对手机的额外优化 */
+        body { -webkit-tap-highlight-color: transparent; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
 
-  const initialInventory = [
-    { id: 1, name: '大米', amount: '5kg', location: '亚超' },
-    { id: 2, name: '牛奶', amount: '2L', location: '德超' },
-  ];
+    <!-- React 代码逻辑 -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // 从全局对象获取图标
+        const { 
+            ChefHat, ShoppingCart, Refrigerator, Plus, Trash2, MapPin, 
+            CheckCircle, Circle, Settings, Download, Upload, Copy, X 
+        } = lucideReact;
 
-  // 状态
-  const [recipes, setRecipes] = useState(() => {
-    try {
-      const saved = localStorage.getItem('kitchen_recipes');
-      return saved ? JSON.parse(saved) : initialRecipes;
-    } catch (e) { return initialRecipes; }
-  });
-
-  const [inventory, setInventory] = useState(() => {
-    try {
-      const saved = localStorage.getItem('kitchen_inventory');
-      return saved ? JSON.parse(saved) : initialInventory;
-    } catch (e) { return initialInventory; }
-  });
-
-  const [shoppingList, setShoppingList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('kitchen_shopping');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
-
-  // 模态框和表单状态
-  const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
-  const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
-  
-  // 备份恢复状态
-  const [importDataString, setImportDataString] = useState('');
-  
-  // 新菜谱表单
-  const [newRecipeName, setNewRecipeName] = useState('');
-  const [newRecipeIngredients, setNewRecipeIngredients] = useState([
-    { name: '', amount: '', location: '德超' }
-  ]);
-
-  // 新库存表单
-  const [newInvName, setNewInvName] = useState('');
-  const [newInvAmount, setNewInvAmount] = useState('');
-  const [newInvLocation, setNewInvLocation] = useState('德超');
-
-  // --- 持久化存储 ---
-  useEffect(() => { localStorage.setItem('kitchen_recipes', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('kitchen_inventory', JSON.stringify(inventory)); }, [inventory]);
-  useEffect(() => { localStorage.setItem('kitchen_shopping', JSON.stringify(shoppingList)); }, [shoppingList]);
-
-  // --- 逻辑函数 ---
-
-  const handleAddIngredientRow = () => {
-    setNewRecipeIngredients([...newRecipeIngredients, { name: '', amount: '', location: '德超' }]);
-  };
-
-  const handleIngredientChange = (index, field, value) => {
-    const updated = [...newRecipeIngredients];
-    updated[index][field] = value;
-    setNewRecipeIngredients(updated);
-  };
-
-  const removeIngredientRow = (index) => {
-    const updated = newRecipeIngredients.filter((_, i) => i !== index);
-    setNewRecipeIngredients(updated);
-  };
-
-  const saveRecipe = () => {
-    if (!newRecipeName.trim()) return alert('请输入菜谱名称');
-    const validIngredients = newRecipeIngredients.filter(i => i.name.trim() !== '');
-    if (validIngredients.length === 0) return alert('请至少添加一个食材');
-
-    const newRecipe = {
-      id: Date.now(),
-      name: newRecipeName,
-      ingredients: validIngredients
-    };
-
-    setRecipes([...recipes, newRecipe]);
-    setShowAddRecipeModal(false);
-    setNewRecipeName('');
-    setNewRecipeIngredients([{ name: '', amount: '', location: '德超' }]);
-  };
-
-  const deleteRecipe = (id) => {
-    if (confirm('确定删除这个菜谱吗？')) {
-      setRecipes(recipes.filter(r => r.id !== id));
-    }
-  };
-
-  const addRecipeToShopping = (recipe) => {
-    const newItems = recipe.ingredients.map(ing => ({
-      id: Date.now() + Math.random(),
-      name: ing.name,
-      amount: ing.amount,
-      location: ing.location,
-      checked: false
-    }));
-    setShoppingList([...shoppingList, ...newItems]);
-    setActiveTab('shopping');
-    // Mobile friendly feedback
-    if (navigator.vibrate) navigator.vibrate(50);
-  };
-
-  const saveInventoryItem = () => {
-    if (!newInvName.trim()) return;
-    const newItem = {
-      id: Date.now(),
-      name: newInvName,
-      amount: newInvAmount,
-      location: newInvLocation
-    };
-    setInventory([...inventory, newItem]);
-    setShowAddInventoryModal(false);
-    setNewInvName('');
-    setNewInvAmount('');
-  };
-
-  const updateInventoryAmount = (id, newAmount) => {
-    setInventory(inventory.map(item => item.id === id ? { ...item, amount: newAmount } : item));
-  };
-
-  const deleteInventoryItem = (id) => {
-    setInventory(inventory.filter(item => item.id !== id));
-  };
-
-  const addInventoryToShopping = (item) => {
-    const newItem = {
-      id: Date.now(),
-      name: item.name,
-      amount: '1份', 
-      location: item.location,
-      checked: false
-    };
-    setShoppingList([...shoppingList, newItem]);
-    if (navigator.vibrate) navigator.vibrate(50);
-  };
-
-  const toggleShoppingItem = (id) => {
-    setShoppingList(shoppingList.map(item => 
-      item.id === id ? { ...item, checked: !item.checked } : item
-    ));
-    if (navigator.vibrate) navigator.vibrate(20);
-  };
-
-  const clearCompletedShopping = () => {
-    setShoppingList(shoppingList.filter(item => !item.checked));
-  };
-
-  const deleteShoppingItem = (id) => {
-    setShoppingList(shoppingList.filter(item => item.id !== id));
-  };
-
-  // --- 数据备份与恢复逻辑 ---
-  const handleExportData = () => {
-    const data = {
-      recipes,
-      inventory,
-      shoppingList,
-      exportDate: new Date().toLocaleString()
-    };
-    const jsonString = JSON.stringify(data);
-    navigator.clipboard.writeText(jsonString).then(() => {
-      alert('数据已复制到剪贴板！请粘贴到记事本或微信保存。');
-    });
-  };
-
-  const handleImportData = () => {
-    try {
-      if (!importDataString) return;
-      const data = JSON.parse(importDataString);
-      if (data.recipes && Array.isArray(data.recipes)) setRecipes(data.recipes);
-      if (data.inventory && Array.isArray(data.inventory)) setInventory(data.inventory);
-      if (data.shoppingList && Array.isArray(data.shoppingList)) setShoppingList(data.shoppingList);
-      alert('数据恢复成功！');
-      setImportDataString('');
-      setShowSettings(false);
-    } catch (e) {
-      alert('数据格式错误，请检查粘贴的内容。');
-    }
-  };
-
-  // --- 界面渲染组件 ---
-
-  const LocationBadge = ({ location }) => {
-    const colors = {
-      '德超': 'bg-blue-100 text-blue-800 border-blue-200',
-      '亚超': 'bg-red-100 text-red-800 border-red-200',
-      '其他': 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return (
-      <span className={`text-xs px-2 py-0.5 rounded-full border ${colors[location] || colors['其他']}`}>
-        {location}
-      </span>
-    );
-  };
-
-  const RecipesView = () => (
-    <div className="pb-24 space-y-4 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-slate-800">我的菜谱</h2>
-        <button 
-          onClick={() => setShowAddRecipeModal(true)}
-          className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center shadow-lg hover:bg-emerald-700 active:scale-95 transition"
-        >
-          <Plus size={18} className="mr-1" /> 新菜谱
-        </button>
-      </div>
-
-      {recipes.length === 0 && (
-        <div className="text-center py-10 text-slate-400">
-          <ChefHat size={48} className="mx-auto mb-2 opacity-50" />
-          <p>还没有菜谱，快去添加一个吧！</p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {recipes.map(recipe => (
-          <div key={recipe.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 relative group active:border-emerald-200 transition-colors">
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="text-lg font-bold text-slate-800">{recipe.name}</h3>
-              <button onClick={() => deleteRecipe(recipe.id)} className="text-slate-300 p-1 hover:bg-red-50 hover:text-red-500 rounded transition">
-                <Trash2 size={18} />
-              </button>
-            </div>
+        const App = () => {
+            // --- 状态管理 ---
+            const [activeTab, setActiveTab] = useState('recipes'); 
+            const [showSettings, setShowSettings] = useState(false);
             
-            <div className="space-y-2 mb-4">
-              {recipe.ingredients.map((ing, idx) => (
-                <div key={idx} className="flex justify-between text-sm text-slate-600 border-b border-dashed border-slate-100 pb-1 last:border-0">
-                  <span>{ing.name} <span className="text-slate-400 text-xs">({ing.amount})</span></span>
-                  <LocationBadge location={ing.location} />
-                </div>
-              ))}
-            </div>
+            // 初始数据
+            const initialRecipes = [
+                {
+                    id: 1,
+                    name: '西红柿炒鸡蛋',
+                    ingredients: [
+                        { name: '西红柿', amount: '3个', location: '德超' },
+                        { name: '鸡蛋', amount: '4个', location: '德超' },
+                        { name: '葱', amount: '1根', location: '亚超' }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: '红烧肉',
+                    ingredients: [
+                        { name: '五花肉', amount: '500g', location: '德超' },
+                        { name: '生姜', amount: '1块', location: '亚超' },
+                        { name: '料酒', amount: '2勺', location: '亚超' },
+                        { name: '八角', amount: '2颗', location: '亚超' }
+                    ]
+                }
+            ];
 
-            <button 
-              onClick={() => addRecipeToShopping(recipe)}
-              className="w-full py-2.5 bg-slate-50 text-emerald-600 font-bold rounded-lg border border-emerald-100 hover:bg-emerald-50 active:bg-emerald-600 active:text-white transition flex justify-center items-center touch-manipulation"
-            >
-              <ShoppingCart size={16} className="mr-2" /> 加入购物清单
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+            const initialInventory = [
+                { id: 1, name: '大米', amount: '5kg', location: '亚超' },
+                { id: 2, name: '牛奶', amount: '2L', location: '德超' },
+            ];
 
-  const InventoryView = () => (
-    <div className="pb-24 space-y-4 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-slate-800">食物库存</h2>
-        <button 
-          onClick={() => setShowAddInventoryModal(true)}
-          className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center shadow-lg hover:bg-blue-700 active:scale-95 transition"
-        >
-          <Plus size={18} className="mr-1" /> 入库
-        </button>
-      </div>
+            // 状态
+            const [recipes, setRecipes] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('kitchen_recipes');
+                    return saved ? JSON.parse(saved) : initialRecipes;
+                } catch (e) { return initialRecipes; }
+            });
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        {inventory.map((item, idx) => (
-          <div key={item.id} className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${idx !== inventory.length -1 ? 'border-b border-slate-100' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className="bg-slate-100 p-2 rounded-full">
-                <Refrigerator size={20} className="text-slate-500" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-slate-800 flex items-center gap-2">
-                  {item.name}
-                  <LocationBadge location={item.location} />
-                </div>
-                <input 
-                  type="text" 
-                  value={item.amount}
-                  onChange={(e) => updateInventoryAmount(item.id, e.target.value)}
-                  className="text-sm text-slate-500 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none transition w-full mt-1"
-                />
-              </div>
-            </div>
+            const [inventory, setInventory] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('kitchen_inventory');
+                    return saved ? JSON.parse(saved) : initialInventory;
+                } catch (e) { return initialInventory; }
+            });
 
-            <div className="flex items-center gap-2 justify-end mt-2 sm:mt-0">
-              <button 
-                onClick={() => addInventoryToShopping(item)}
-                className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2.5 rounded-full transition active:scale-95"
-              >
-                <ShoppingCart size={18} />
-              </button>
-              <button 
-                onClick={() => deleteInventoryItem(item.id)}
-                className="text-slate-400 hover:text-red-500 p-2.5 rounded-full transition active:scale-95"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          </div>
-        ))}
-        {inventory.length === 0 && (
-          <div className="p-8 text-center text-slate-400">
-            库存是空的，去进点货吧。
-          </div>
-        )}
-      </div>
-    </div>
-  );
+            const [shoppingList, setShoppingList] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('kitchen_shopping');
+                    return saved ? JSON.parse(saved) : [];
+                } catch (e) { return []; }
+            });
 
-  const ShoppingView = () => {
-    const groupedList = shoppingList.reduce((acc, item) => {
-      const loc = item.location || '其他';
-      if (!acc[loc]) acc[loc] = [];
-      acc[loc].push(item);
-      return acc;
-    }, {});
+            const [showAddRecipeModal, setShowAddRecipeModal] = useState(false);
+            const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
+            const [importDataString, setImportDataString] = useState('');
+            
+            // 表单状态
+            const [newRecipeName, setNewRecipeName] = useState('');
+            const [newRecipeIngredients, setNewRecipeIngredients] = useState([
+                { name: '', amount: '', location: '德超' }
+            ]);
+            const [newInvName, setNewInvName] = useState('');
+            const [newInvAmount, setNewInvAmount] = useState('');
+            const [newInvLocation, setNewInvLocation] = useState('德超');
 
-    const locationOrder = ['德超', '亚超', '其他'];
-    const sortedLocations = Object.keys(groupedList).sort((a, b) => {
-      const idxA = locationOrder.indexOf(a);
-      const idxB = locationOrder.indexOf(b);
-      return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
-    });
+            // --- 持久化存储 ---
+            useEffect(() => { localStorage.setItem('kitchen_recipes', JSON.stringify(recipes)); }, [recipes]);
+            useEffect(() => { localStorage.setItem('kitchen_inventory', JSON.stringify(inventory)); }, [inventory]);
+            useEffect(() => { localStorage.setItem('kitchen_shopping', JSON.stringify(shoppingList)); }, [shoppingList]);
 
-    const activeCount = shoppingList.filter(i => !i.checked).length;
+            // --- 逻辑函数 ---
+            const handleAddIngredientRow = () => {
+                setNewRecipeIngredients([...newRecipeIngredients, { name: '', amount: '', location: '德超' }]);
+            };
 
-    return (
-      <div className="pb-24 space-y-4 animate-in fade-in duration-300">
-        <div className="flex justify-between items-center mb-4 sticky top-14 bg-slate-50 pt-2 pb-2 z-10">
-          <h2 className="text-2xl font-bold text-slate-800">
-            采购清单 <span className="text-sm font-normal text-slate-500 ml-2">({activeCount})</span>
-          </h2>
-          {shoppingList.some(i => i.checked) && (
-            <button 
-              onClick={clearCompletedShopping}
-              className="text-xs text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-full border border-red-200 transition active:bg-red-100"
-            >
-              清除已买
-            </button>
-          )}
-        </div>
+            const handleIngredientChange = (index, field, value) => {
+                const updated = [...newRecipeIngredients];
+                updated[index][field] = value;
+                setNewRecipeIngredients(updated);
+            };
 
-        {shoppingList.length === 0 ? (
-          <div className="text-center py-16 text-slate-400">
-            <ShoppingCart size={48} className="mx-auto mb-2 opacity-50" />
-            <p>清单空空如也，今天不用花钱！</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {sortedLocations.map(location => (
-              <div key={location} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className={`px-4 py-2 font-semibold text-sm flex items-center
-                  ${location === '德超' ? 'bg-blue-50 text-blue-700' : 
-                    location === '亚超' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>
-                  <MapPin size={14} className="mr-1.5" /> {location}
-                </div>
-                <div>
-                  {groupedList[location].map(item => (
-                    <div 
-                      key={item.id} 
-                      className={`flex items-center justify-between p-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition cursor-pointer touch-manipulation select-none
-                      ${item.checked ? 'bg-slate-50/80' : ''}`}
-                      onClick={() => toggleShoppingItem(item.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`transition-all duration-200 ${item.checked ? 'text-emerald-500 scale-110' : 'text-slate-300'}`}>
-                          {item.checked ? <CheckCircle size={24} className="fill-emerald-100" /> : <Circle size={24} />}
-                        </div>
-                        <div className={`${item.checked ? 'line-through text-slate-400 opacity-60' : 'text-slate-800'}`}>
-                          <div className="font-medium text-lg">{item.name}</div>
-                          {item.amount && <div className="text-sm text-slate-500">{item.amount}</div>}
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); deleteShoppingItem(item.id); }}
-                        className="text-slate-300 hover:text-red-400 p-2"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+            const removeIngredientRow = (index) => {
+                const updated = newRecipeIngredients.filter((_, i) => i !== index);
+                setNewRecipeIngredients(updated);
+            };
+
+            const saveRecipe = () => {
+                if (!newRecipeName.trim()) return alert('请输入菜谱名称');
+                const validIngredients = newRecipeIngredients.filter(i => i.name.trim() !== '');
+                if (validIngredients.length === 0) return alert('请至少添加一个食材');
+
+                const newRecipe = {
+                    id: Date.now(),
+                    name: newRecipeName,
+                    ingredients: validIngredients
+                };
+
+                setRecipes([...recipes, newRecipe]);
+                setShowAddRecipeModal(false);
+                setNewRecipeName('');
+                setNewRecipeIngredients([{ name: '', amount: '', location: '德超' }]);
+            };
+
+            const deleteRecipe = (id) => {
+                if (confirm('确定删除这个菜谱吗？')) {
+                    setRecipes(recipes.filter(r => r.id !== id));
+                }
+            };
+
+            const addRecipeToShopping = (recipe) => {
+                const newItems = recipe.ingredients.map(ing => ({
+                    id: Date.now() + Math.random(),
+                    name: ing.name,
+                    amount: ing.amount,
+                    location: ing.location,
+                    checked: false
+                }));
+                setShoppingList([...shoppingList, ...newItems]);
+                setActiveTab('shopping');
+                if (navigator.vibrate) navigator.vibrate(50);
+            };
+
+            const saveInventoryItem = () => {
+                if (!newInvName.trim()) return;
+                const newItem = {
+                    id: Date.now(),
+                    name: newInvName,
+                    amount: newInvAmount,
+                    location: newInvLocation
+                };
+                setInventory([...inventory, newItem]);
+                setShowAddInventoryModal(false);
+                setNewInvName('');
+                setNewInvAmount('');
+            };
+
+            const updateInventoryAmount = (id, newAmount) => {
+                setInventory(inventory.map(item => item.id === id ? { ...item, amount: newAmount } : item));
+            };
+
+            const deleteInventoryItem = (id) => {
+                setInventory(inventory.filter(item => item.id !== id));
+            };
+
+            const addInventoryToShopping = (item) => {
+                const newItem = {
+                    id: Date.now(),
+                    name: item.name,
+                    amount: '1份', 
+                    location: item.location,
+                    checked: false
+                };
+                setShoppingList([...shoppingList, newItem]);
+                if (navigator.vibrate) navigator.vibrate(50);
+            };
+
+            const toggleShoppingItem = (id) => {
+                setShoppingList(shoppingList.map(item => 
+                    item.id === id ? { ...item, checked: !item.checked } : item
+                ));
+                if (navigator.vibrate) navigator.vibrate(20);
+            };
+
+            const clearCompletedShopping = () => {
+                setShoppingList(shoppingList.filter(item => !item.checked));
+            };
+
+            const deleteShoppingItem = (id) => {
+                setShoppingList(shoppingList.filter(item => item.id !== id));
+            };
+
+            const handleExportData = () => {
+                const data = { recipes, inventory, shoppingList, exportDate: new Date().toLocaleString() };
+                const jsonString = JSON.stringify(data);
+                navigator.clipboard.writeText(jsonString).then(() => {
+                    alert('数据已复制到剪贴板！');
+                });
+            };
+
+            const handleImportData = () => {
+                try {
+                    if (!importDataString) return;
+                    const data = JSON.parse(importDataString);
+                    if (data.recipes) setRecipes(data.recipes);
+                    if (data.inventory) setInventory(data.inventory);
+                    if (data.shoppingList) setShoppingList(data.shoppingList);
+                    alert('数据恢复成功！');
+                    setImportDataString('');
+                    setShowSettings(false);
+                } catch (e) {
+                    alert('数据格式错误');
+                }
+            };
+
+            // --- 组件 ---
+            const LocationBadge = ({ location }) => {
+                const colors = {
+                    '德超': 'bg-blue-100 text-blue-800 border-blue-200',
+                    '亚超': 'bg-red-100 text-red-800 border-red-200',
+                    '其他': 'bg-gray-100 text-gray-800 border-gray-200'
+                };
+                return (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${colors[location] || colors['其他']}`}>
+                        {location}
+                    </span>
+                );
+            };
+
+            const RecipesView = () => (
+                <div className="pb-24 space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-slate-800">我的菜谱</h2>
+                        <button onClick={() => setShowAddRecipeModal(true)} className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center shadow-lg active:scale-95 transition">
+                            <Plus size={18} className="mr-1" /> 新菜谱
+                        </button>
                     </div>
-                  ))}
+
+                    {recipes.length === 0 && <div className="text-center py-10 text-slate-400">还没有菜谱，快去添加一个吧！</div>}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {recipes.map(recipe => (
+                            <div key={recipe.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 relative group">
+                                <div className="flex justify-between items-start mb-3">
+                                    <h3 className="text-lg font-bold text-slate-800">{recipe.name}</h3>
+                                    <button onClick={() => deleteRecipe(recipe.id)} className="text-slate-300 p-1 hover:text-red-500"><Trash2 size={18} /></button>
+                                </div>
+                                <div className="space-y-2 mb-4">
+                                    {recipe.ingredients.map((ing, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm text-slate-600 border-b border-dashed border-slate-100 pb-1 last:border-0">
+                                            <span>{ing.name} <span className="text-slate-400 text-xs">({ing.amount})</span></span>
+                                            <LocationBadge location={ing.location} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => addRecipeToShopping(recipe)} className="w-full py-2.5 bg-slate-50 text-emerald-600 font-bold rounded-lg border border-emerald-100 active:bg-emerald-600 active:text-white transition flex justify-center items-center">
+                                    <ShoppingCart size={16} className="mr-2" /> 加入购物清单
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+            );
 
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 md:max-w-md md:mx-auto md:border-x md:border-slate-200 shadow-2xl select-none">
-      
-      {/* Header Area */}
-      <div className="bg-white px-5 py-4 shadow-sm border-b border-slate-100 sticky top-0 z-20 flex justify-between items-center pt-safe-top">
-        <h1 className="text-xl font-bold text-emerald-700 flex items-center gap-2">
-           <ChefHat className="text-emerald-600" /> 知味清单
-        </h1>
-        <button 
-          onClick={() => setShowSettings(true)}
-          className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-50 transition"
-        >
-          <Settings size={22} />
-        </button>
-      </div>
+            const InventoryView = () => (
+                <div className="pb-24 space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-slate-800">食物库存</h2>
+                        <button onClick={() => setShowAddInventoryModal(true)} className="bg-blue-600 text-white px-3 py-2 rounded-lg flex items-center shadow-lg active:scale-95 transition">
+                            <Plus size={18} className="mr-1" /> 入库
+                        </button>
+                    </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                        {inventory.map((item, idx) => (
+                            <div key={item.id} className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${idx !== inventory.length -1 ? 'border-b border-slate-100' : ''}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-slate-100 p-2 rounded-full"><Refrigerator size={20} className="text-slate-500" /></div>
+                                    <div className="flex-1">
+                                        <div className="font-medium text-slate-800 flex items-center gap-2">
+                                            {item.name} <LocationBadge location={item.location} />
+                                        </div>
+                                        <input type="text" value={item.amount} onChange={(e) => updateInventoryAmount(item.id, e.target.value)} className="text-sm text-slate-500 bg-transparent border-b border-transparent focus:border-blue-500 focus:outline-none w-full mt-1" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 justify-end mt-2 sm:mt-0">
+                                    <button onClick={() => addInventoryToShopping(item)} className="text-emerald-600 bg-emerald-50 p-2.5 rounded-full"><ShoppingCart size={18} /></button>
+                                    <button onClick={() => deleteInventoryItem(item.id)} className="text-slate-400 hover:text-red-500 p-2.5 rounded-full"><Trash2 size={18} /></button>
+                                </div>
+                            </div>
+                        ))}
+                        {inventory.length === 0 && <div className="p-8 text-center text-slate-400">库存是空的。</div>}
+                    </div>
+                </div>
+            );
 
-      {/* Main Content Area */}
-      <div className="p-4 min-h-[85vh] overflow-x-hidden">
-        {activeTab === 'recipes' && <RecipesView />}
-        {activeTab === 'inventory' && <InventoryView />}
-        {activeTab === 'shopping' && <ShoppingView />}
-      </div>
+            const ShoppingView = () => {
+                const groupedList = shoppingList.reduce((acc, item) => {
+                    const loc = item.location || '其他';
+                    if (!acc[loc]) acc[loc] = [];
+                    acc[loc].push(item);
+                    return acc;
+                }, {});
+                const locationOrder = ['德超', '亚超', '其他'];
+                const sortedLocations = Object.keys(groupedList).sort((a, b) => {
+                    const idxA = locationOrder.indexOf(a);
+                    const idxB = locationOrder.indexOf(b);
+                    return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+                });
+                const activeCount = shoppingList.filter(i => !i.checked).length;
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 w-full md:max-w-md bg-white/95 backdrop-blur border-t border-slate-200 flex justify-around py-2 pb-safe-bottom z-30 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
-        <button 
-          onClick={() => setActiveTab('recipes')}
-          className={`flex flex-col items-center p-2 rounded-xl transition w-1/3 active:scale-95 ${activeTab === 'recipes' ? 'text-emerald-600' : 'text-slate-400'}`}
-        >
-          <ChefHat size={26} strokeWidth={activeTab === 'recipes' ? 2.5 : 2} />
-          <span className="text-[10px] mt-1 font-bold">菜谱</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('inventory')}
-          className={`flex flex-col items-center p-2 rounded-xl transition w-1/3 active:scale-95 ${activeTab === 'inventory' ? 'text-blue-600' : 'text-slate-400'}`}
-        >
-          <Refrigerator size={26} strokeWidth={activeTab === 'inventory' ? 2.5 : 2} />
-          <span className="text-[10px] mt-1 font-bold">库存</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('shopping')}
-          className={`flex flex-col items-center p-2 rounded-xl transition w-1/3 relative active:scale-95 ${activeTab === 'shopping' ? 'text-indigo-600' : 'text-slate-400'}`}
-        >
-          <div className="relative">
-            <ShoppingCart size={26} strokeWidth={activeTab === 'shopping' ? 2.5 : 2} />
-            {shoppingList.filter(i => !i.checked).length > 0 && (
-              <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-white shadow-sm">
-                {shoppingList.filter(i => !i.checked).length}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] mt-1 font-bold">采购</span>
-        </button>
-      </div>
+                return (
+                    <div className="pb-24 space-y-4">
+                        <div className="flex justify-between items-center mb-4 sticky top-14 bg-slate-50 pt-2 pb-2 z-10">
+                            <h2 className="text-2xl font-bold text-slate-800">采购清单 <span className="text-sm font-normal text-slate-500">({activeCount})</span></h2>
+                            {shoppingList.some(i => i.checked) && (
+                                <button onClick={clearCompletedShopping} className="text-xs text-red-500 border border-red-200 px-3 py-1.5 rounded-full">清除已买</button>
+                            )}
+                        </div>
+                        {shoppingList.length === 0 ? <div className="text-center py-16 text-slate-400">清单空空如也。</div> : (
+                            <div className="space-y-6">
+                                {sortedLocations.map(location => (
+                                    <div key={location} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                        <div className={`px-4 py-2 font-semibold text-sm flex items-center ${location === '德超' ? 'bg-blue-50 text-blue-700' : location === '亚超' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>
+                                            <MapPin size={14} className="mr-1.5" /> {location}
+                                        </div>
+                                        <div>
+                                            {groupedList[location].map(item => (
+                                                <div key={item.id} className={`flex items-center justify-between p-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition cursor-pointer select-none ${item.checked ? 'bg-slate-50/80' : ''}`} onClick={() => toggleShoppingItem(item.id)}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={item.checked ? 'text-emerald-500' : 'text-slate-300'}>{item.checked ? <CheckCircle size={24} className="fill-emerald-100" /> : <Circle size={24} />}</div>
+                                                        <div className={item.checked ? 'line-through text-slate-400 opacity-60' : 'text-slate-800'}>
+                                                            <div className="font-medium text-lg">{item.name}</div>
+                                                            {item.amount && <div className="text-sm text-slate-500">{item.amount}</div>}
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={(e) => { e.stopPropagation(); deleteShoppingItem(item.id); }} className="text-slate-300 hover:text-red-400 p-2"><Trash2 size={18} /></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
 
-      {/* Settings Modal (Data Backup) */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-           <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold flex items-center gap-2"><Settings size={20} /> 设置与数据</h3>
-                <button onClick={() => setShowSettings(false)}><X className="text-slate-400" /></button>
-              </div>
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-900 md:max-w-md md:mx-auto md:border-x md:border-slate-200 shadow-2xl select-none">
+                    <div className="bg-white px-5 py-4 shadow-sm border-b border-slate-100 sticky top-0 z-20 flex justify-between items-center pt-safe-top">
+                        <h1 className="text-xl font-bold text-emerald-700 flex items-center gap-2"><ChefHat className="text-emerald-600" /> 知味清单</h1>
+                        <button onClick={() => setShowSettings(true)} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full"><Settings size={22} /></button>
+                    </div>
 
-              <div className="space-y-4">
-                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                  <h4 className="font-bold text-emerald-800 mb-2 text-sm flex items-center gap-2">
-                    <Download size={16} /> 备份数据
-                  </h4>
-                  <p className="text-xs text-emerald-700 mb-3">
-                    点击下方按钮复制数据代码，然后粘贴到你的备忘录或微信中保存。
-                  </p>
-                  <button 
-                    onClick={handleExportData}
-                    className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold shadow-sm active:scale-95 transition flex justify-center items-center gap-2"
-                  >
-                    <Copy size={14} /> 复制所有数据
-                  </button>
-           
+                    <div className="p-4 min-h-[85vh] overflow-x-hidden">
+                        {activeTab === 'recipes' && <RecipesView />}
+                        {activeTab === 'inventory' && <InventoryView />}
+                        {activeTab === 'shopping' && <ShoppingView />}
+                    </div>
+
+                    <div className="fixed bottom-0 w-full md:max-w-md bg-white/95 backdrop-blur border-t border-slate-200 flex justify-around py-2 pb-safe-bottom z-30">
+                        <button onClick={() => setActiveTab('recipes')} className={`flex flex-col items-center p-2 rounded-xl w-1/3 ${activeTab === 'recipes' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <ChefHat size={26} strokeWidth={activeTab === 'recipes' ? 2.5 : 2} /><span className="text-[10px] mt-1 font-bold">菜谱</span>
+                        </button>
+                        <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center p-2 rounded-xl w-1/3 ${activeTab === 'inventory' ? 'text-blue-600' : 'text-slate-400'}`}>
+                            <Refrigerator size={26} strokeWidth={activeTab === 'inventory' ? 2.5 : 2} /><span className="text-[10px] mt-1 font-bold">库存</span>
+                        </button>
+                        <button onClick={() => setActiveTab('shopping')} className={`flex flex-col items-center p-2 rounded-xl w-1/3 relative ${activeTab === 'shopping' ? 'text-indigo-600' : 'text-slate-400'}`}>
+                            <div className="relative"><ShoppingCart size={26} strokeWidth={activeTab === 'shopping' ? 2.5 : 2} />
+                            {shoppingList.filter(i => !i.checked).length > 0 && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-white">{shoppingList.filter(i => !i.checked).length}</span>}</div>
+                            <span className="text-[10px] mt-1 font-bold">采购</span>
+                        </button>
+                    </div>
+
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+                                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold flex items-center gap-2"><Settings size={20} /> 设置与数据</h3><button onClick={() => setShowSettings(false)}><X className="text-slate-400" /></button></div>
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                        <h4 className="font-bold text-emerald-800 mb-2 text-sm flex items-center gap-2"><Download size={16} /> 备份数据</h4>
+                                        <button onClick={handleExportData} className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2"><Copy size={14} /> 复制所有数据</button>
+                                    </div>
+                                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                        <h4 className="font-bold text-blue-800 mb-2 text-sm flex items-center gap-2"><Upload size={16} /> 恢复数据</h4>
+                                        <textarea className="w-full h-20 text-xs p-2 rounded border border-blue-200 mb-2" placeholder='粘贴数据...' value={importDataString} onChange={(e) => setImportDataString(e.target.value)} />
+                                        <button onClick={handleImportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">恢复数据</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showAddRecipeModal && (
+                        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+                                <h3 className="text-xl font-bold mb-4">添加新菜谱</h3>
+                                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">菜名</label><input className="w-full border border-slate-300 rounded-lg p-2.5 bg-slate-50" value={newRecipeName} onChange={(e) => setNewRecipeName(e.target.value)} /></div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">食材列表</label>
+                                        {newRecipeIngredients.map((ing, idx) => (
+                                            <div key={idx} className="flex gap-2 mb-2 items-start">
+                                                <div className="flex-1 space-y-2">
+                                                    <input className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-slate-50" placeholder="食材名" value={ing.name} onChange={(e) => handleIngredientChange(idx, 'name', e.target.value)} />
+                                                    <div className="flex gap-2">
+                                                        <input className="w-1/2 border border-slate-300 rounded-lg p-2 text-sm bg-slate-50" placeholder="数量" value={ing.amount} onChange={(e) => handleIngredientChange(idx, 'amount', e.target.value)} />
+                                                        <select className="w-1/2 border border-slate-300 rounded-lg p-2 text-sm bg-white" value={ing.location} onChange={(e) => handleIngredientChange(idx, 'location', e.target.value)}><option value="德超">德超</option><option value="亚超">亚超</option><option value="其他">其他</option></select>
+                                                    </div>
+                                                </div>
+                                                {newRecipeIngredients.length > 1 && <button onClick={() => removeIngredientRow(idx)} className="text-red-400 mt-2 p-2"><Trash2 size={18} /></button>}
+                                            </div>
+                                        ))}
+                                        <button onClick={handleAddIngredientRow} className="text-sm text-emerald-600 font-bold flex items-center mt-3 px-3 py-2 rounded-lg w-full justify-center border border-dashed border-emerald-200"><Plus size={16} className="mr-1" /> 添加食材</button>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                                    <button onClick={() => setShowAddRecipeModal(false)} className="flex-1 py-3 text-slate-500 font-bold bg-slate-100 rounded-xl">取消</button>
+                                    <button onClick={saveRecipe} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-md">保存</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showAddInventoryModal && (
+                        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
+                            <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+                                <h3 className="text-xl font-bold mb-4">库存补货</h3>
+                                <div className="space-y-4">
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">物品名称</label><input className="w-full border border-slate-300 rounded-lg p-3 bg-slate-50" value={newInvName} onChange={(e) => setNewInvName(e.target.value)} /></div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div><label className="block text-sm font-medium text-slate-700 mb-1">数量</label><input className="w-full border border-slate-300 rounded-lg p-3 bg-slate-50" value={newInvAmount} onChange={(e) => setNewInvAmount(e.target.value)} /></div>
+                                        <div><label className="block text-sm font-medium text-slate-700 mb-1">来源</label><select className="w-full border border-slate-300 rounded-lg p-3 bg-white" value={newInvLocation} onChange={(e) => setNewInvLocation(e.target.value)}><option value="德超">德超</option><option value="亚超">亚超</option><option value="其他">其他</option></select></div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+                                    <button onClick={() => setShowAddInventoryModal(false)} className="flex-1 py-3 text-slate-500 font-bold bg-slate-100 rounded-xl">取消</button>
+                                    <button onClick={saveInventoryItem} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md">确认</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
